@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Issue Replayer - Bugs & Resolutions Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; padding: 20px; }
+        h1 { text-align: center; color: #1a1a2e; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+        .summary { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+        .summary-card { background: #fff; border-radius: 10px; padding: 20px 30px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); min-width: 150px; }
+        .summary-card .number { font-size: 36px; font-weight: bold; }
+        .summary-card .label { font-size: 13px; color: #888; margin-top: 5px; }
+        .bugs-found .number { color: #e74c3c; }
+        .bugs-fixed .number { color: #27ae60; }
+
+        .bug-card { background: #fff; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .bug-header { padding: 15px 20px; display: flex; align-items: center; gap: 12px; }
+        .bug-header.critical { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+        .bug-header.major { background: linear-gradient(135deg, #e67e22, #d35400); color: #fff; }
+        .bug-header.minor { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+        .bug-id { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .bug-title { font-size: 16px; font-weight: 600; }
+        .bug-body { padding: 20px; }
+        .bug-body h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; margin-top: 18px; }
+        .bug-body h3:first-child { margin-top: 0; }
+        .bug-body p, .bug-body ul { font-size: 14px; line-height: 1.7; }
+        .bug-body ul { padding-left: 20px; }
+        .bug-body code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #c0392b; }
+        .bug-body pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin-top: 8px; }
+        .bug-body pre .comment { color: #6a9955; }
+        .bug-body pre .keyword { color: #569cd6; }
+        .bug-body pre .string { color: #ce9178; }
+
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-left: 10px; }
+        .badge-resolved { background: #27ae60; color: #fff; }
+        .badge-severity { background: rgba(255,255,255,0.3); color: #fff; }
+
+        .how-i-found { background: #eef6ff; border-left: 4px solid #3498db; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 10px; }
+        .how-i-found strong { color: #2980b9; }
+
+        .timeline { margin-top: 40px; }
+        .timeline h2 { text-align: center; margin-bottom: 20px; color: #1a1a2e; }
+        .timeline-item { display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-start; }
+        .timeline-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+        .timeline-dot.red { background: #e74c3c; }
+        .timeline-dot.green { background: #27ae60; }
+        .timeline-dot.blue { background: #3498db; }
+        .timeline-content { font-size: 14px; line-height: 1.6; }
+        .timeline-content strong { color: #1a1a2e; }
+
+        footer { text-align: center; margin-top: 40px; color: #aaa; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h1>? Bugs &amp; Resolutions Report</h1>
+    <p class="subtitle">Production Issue Replayer System &mdash; Spring Boot 3.5.0 &mdash; April 21, 2026</p>
+
+    <div class="summary">
+        <div class="summary-card bugs-found">
+            <div class="number">3</div>
+            <div class="label">Bugs Found</div>
+        </div>
+        <div class="summary-card bugs-fixed">
+            <div class="number">3</div>
+            <div class="label">Bugs Fixed</div>
+        </div>
+        <div class="summary-card">
+            <div class="number" style="color:#3498db;">?</div>
+            <div class="label">App Running</div>
+        </div>
+    </div>
+
+    <!-- ===================== BUG 1 ===================== -->
+    <div class="bug-card">
+        <div class="bug-header critical">
+            <span class="bug-id">BUG-001</span>
+            <span class="bug-title">Spring Boot Version 3.3.0 No Longer Available</span>
+            <span class="badge badge-severity">CRITICAL</span>
+            <span class="badge badge-resolved">RESOLVED</span>
+        </div>
+        <div class="bug-body">
+            <h3>? What Happened</h3>
+            <p>
+                When downloading the project from Spring Initializr with <code>bootVersion=3.3.0</code>, 
+                the server returned a <strong>400 Bad Request</strong> error:
+            </p>
+            <pre><span class="string">"Invalid Spring Boot version '3.3.0', Spring Boot compatibility range is >=3.5.0"</span></pre>
+
+            <h3>? Root Cause</h3>
+            <p>
+                Spring Initializr only supports currently maintained Spring Boot versions. 
+                Version 3.3.x has reached end-of-life and was removed from the Initializr.
+            </p>
+
+            <h3>? Resolution</h3>
+            <p>Changed the Spring Boot version to <code>3.5.0</code> (latest stable):</p>
+            <pre>&lt;parent&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+    <span class="keyword">&lt;version&gt;3.5.0&lt;/version&gt;</span>  &lt;!-- was 3.3.0 --&gt;
+&lt;/parent&gt;</pre>
+
+            <div class="how-i-found">
+                <strong>? How I Found This:</strong> 
+                I used <code>curl</code> to download from Spring Initializr. The downloaded file was only 189 bytes — 
+                way too small for a zip. I checked the file contents with <code>type</code> command and saw the JSON error response 
+                instead of a zip archive. <em>Lesson: Always check file size after download!</em>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== BUG 2 ===================== -->
+    <div class="bug-card">
+        <div class="bug-header critical">
+            <span class="bug-id">BUG-002</span>
+            <span class="bug-title">Cannot Load Driver Class: org.h2.Driver</span>
+            <span class="badge badge-severity">CRITICAL</span>
+            <span class="badge badge-resolved">RESOLVED</span>
+        </div>
+        <div class="bug-body">
+            <h3>? What Happened</h3>
+            <p>Application crashed on startup with this error:</p>
+            <pre><span class="string">Cannot load driver class: org.h2.Driver</span>
+BeanCreationException: Error creating bean with name 'entityManagerFactory'
+Failed to instantiate [com.zaxxer.hikari.HikariDataSource]</pre>
+
+            <h3>? Root Cause</h3>
+            <p>Two problems combined:</p>
+            <ul>
+                <li><strong>Missing <code>application.properties</code> config</strong> — JPA was on the classpath 
+                    but no datasource URL, username, or H2 settings were configured. Spring tried to auto-configure 
+                    a datasource but couldn't find the driver.</li>
+                <li><strong>Explicit <code>driver-class-name</code> set</strong> — Setting 
+                    <code>spring.datasource.driver-class-name=org.h2.Driver</code> explicitly caused a classloader 
+                    conflict with DevTools (which uses a separate restart classloader).</li>
+            </ul>
+
+            <h3>? Resolution</h3>
+            <p>Added proper H2 configuration in <code>application.properties</code> and let Spring Boot 
+               <strong>auto-detect the driver</strong> from the JDBC URL (no explicit driver-class-name):</p>
+            <pre><span class="comment"># H2 Database</span>
+spring.datasource.url=<span class="string">jdbc:h2:mem:issuedb;DB_CLOSE_ON_EXIT=FALSE</span>
+spring.datasource.username=<span class="string">sa</span>
+spring.datasource.password=
+
+<span class="comment"># H2 Console</span>
+spring.h2.console.enabled=<span class="keyword">true</span>
+spring.h2.console.path=<span class="string">/h2-console</span>
+
+<span class="comment"># JPA</span>
+spring.jpa.hibernate.ddl-auto=<span class="string">update</span>
+spring.jpa.show-sql=<span class="keyword">true</span>
+spring.jpa.open-in-view=<span class="keyword">false</span></pre>
+
+            <div class="how-i-found">
+                <strong>? How I Found This:</strong> 
+                I read the full stack trace carefully. The key line was 
+                <code>Cannot load driver class: org.h2.Driver</code>. Then I checked <code>application.properties</code> — 
+                it only had <code>spring.application.name</code>, nothing else! 
+                Spring Boot auto-configures JPA when it's on the classpath, but it <em>needs</em> a datasource URL. 
+                <em>Lesson: When using JPA, always configure your datasource properties!</em>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== BUG 3 ===================== -->
+    <div class="bug-card">
+        <div class="bug-header major">
+            <span class="bug-id">BUG-003</span>
+            <span class="bug-title">Port 8080 Already In Use</span>
+            <span class="badge badge-severity">MAJOR</span>
+            <span class="badge badge-resolved">RESOLVED</span>
+        </div>
+        <div class="bug-body">
+            <h3>? What Happened</h3>
+            <p>After fixing Bug #2, the app failed again with:</p>
+            <pre><span class="string">Web server failed to start. Port 8080 was already in use.</span>
+Identify and stop the process that's listening on port 8080
+or configure this application to listen on another port.</pre>
+
+            <h3>? Root Cause</h3>
+            <p>
+                The previous failed run (Bug #2) left a <strong>zombie Java process</strong> still holding port 8080. 
+                Even though the app crashed, the JVM process didn't fully terminate.
+            </p>
+
+            <h3>? Resolution</h3>
+            <p>Killed the orphan process using this command:</p>
+            <pre><span class="comment">REM Find and kill the process on port 8080</span>
+<span class="keyword">for /f</span> "tokens=5" %a in ('netstat -aon ^| findstr :8080 ^| findstr LISTENING') <span class="keyword">do</span> taskkill /F /PID %a</pre>
+            <p>Then restarted the app — it started successfully on port 8080.</p>
+
+            <div class="how-i-found">
+                <strong>? How I Found This:</strong> 
+                The error message was very clear: <code>Port 8080 was already in use</code>. 
+                I used <code>netstat</code> to find which process (PID) was using port 8080, then killed it with <code>taskkill</code>. 
+                <em>Lesson: Always kill previous app instances before restarting! Or add <code>DB_CLOSE_ON_EXIT=FALSE</code> to your H2 URL 
+                to prevent shutdown race conditions.</em>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== TIMELINE ===================== -->
+    <div class="timeline">
+        <h2>? Debugging Timeline</h2>
+
+        <div class="timeline-item">
+            <div class="timeline-dot blue"></div>
+            <div class="timeline-content">
+                <strong>Step 1: Check workspace</strong> — Ran <code>dir D:\CODE_WS\</code> to see what exists. Found only <code>.metadata</code> (empty workspace).
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot blue"></div>
+            <div class="timeline-content">
+                <strong>Step 2: Download project</strong> — Used <code>curl</code> to download from Spring Initializr with version 3.3.0.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot red"></div>
+            <div class="timeline-content">
+                <strong>Step 3: BUG-001 found</strong> — File was 189 bytes (error JSON). Fixed by changing to version 3.5.0.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot blue"></div>
+            <div class="timeline-content">
+                <strong>Step 4: Extract &amp; verify</strong> — Unzipped project, verified structure with <code>dir /b /s</code>.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot blue"></div>
+            <div class="timeline-content">
+                <strong>Step 5: Read source files</strong> — Inspected <code>pom.xml</code>, <code>IssueReplayerApplication.java</code>, and <code>application.properties</code>.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot red"></div>
+            <div class="timeline-content">
+                <strong>Step 6: BUG-002 found</strong> — First run failed: <code>Cannot load driver class: org.h2.Driver</code>. Fixed by adding H2 datasource config to application.properties.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot red"></div>
+            <div class="timeline-content">
+                <strong>Step 7: BUG-003 found</strong> — Second run failed: <code>Port 8080 already in use</code>. Fixed by killing the zombie process.
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-dot green"></div>
+            <div class="timeline-content">
+                <strong>Step 8: SUCCESS ?</strong> — App started in 2.577 seconds on port 8080. H2 console available at <code>/h2-console</code>. Actuator running at <code>/actuator</code>.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== KEY TAKEAWAYS ===================== -->
+    <div class="bug-card" style="margin-top: 30px;">
+        <div class="bug-header" style="background: linear-gradient(135deg, #2c3e50, #3498db);">
+            <span class="bug-title">? Key Takeaways (What You Should Learn)</span>
+        </div>
+        <div class="bug-body">
+            <ul>
+                <li><strong>Always check downloaded file sizes</strong> — A tiny file often means an error response, not actual content.</li>
+                <li><strong>Read the full stack trace</strong> — The root cause is usually in the <code>Caused by:</code> sections at the bottom.</li>
+                <li><strong>JPA requires datasource config</strong> — If <code>spring-boot-starter-data-jpa</code> is on the classpath, you MUST configure a datasource URL.</li>
+                <li><strong>Let Spring auto-detect drivers</strong> — Don't set <code>driver-class-name</code> manually; Spring detects it from the JDBC URL.</li>
+                <li><strong>Kill zombie processes</strong> — Use <code>netstat -aon | findstr :PORT</code> + <code>taskkill /F /PID</code> on Windows.</li>
+                <li><strong>Use <code>DB_CLOSE_ON_EXIT=FALSE</code></strong> in H2 URLs to prevent premature shutdown of in-memory databases.</li>
+                <li><strong>Set <code>spring.jpa.open-in-view=false</code></strong> to avoid the warning and prevent lazy-loading issues in controllers.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        Generated by GitHub Copilot &mdash; April 21, 2026 &mdash; Production Issue Replayer System
+    </footer>
+
+</body>
+</html>
