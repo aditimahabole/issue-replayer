@@ -2,6 +2,7 @@ package com.project.issue_replayer.service;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -36,15 +37,36 @@ import lombok.extern.slf4j.Slf4j;
  * - This separation is a Spring Boot best practice
  */
 @Service                 // Tells Spring: "This is a business logic class, manage it for me"
-@RequiredArgsConstructor // Lombok: generates constructor to inject dependencies
 @Slf4j                   // Lombok: gives us a logger
 public class ReplayService {
 
     private final FailedApiRequestRepository repository;
     private final RestTemplate restTemplate;
 
-    // Base URL of our own app (since we're replaying against ourselves)
-    private static final String BASE_URL = "http://localhost:8080";
+    /**
+     * @Value reads from application.properties at startup.
+     * Instead of hardcoding "http://localhost:8080", we read it from config.
+     * In production, you just change the property — no code changes needed!
+     * 
+     * ${app.replay.base-url} = reads property "app.replay.base-url"
+     */
+    @Value("${app.replay.base-url}")
+    private String baseUrl;
+
+    /**
+     * Constructor injection (since we can't use @RequiredArgsConstructor with @Value)
+     * Spring auto-injects repository and restTemplate.
+     */
+    public ReplayService(FailedApiRequestRepository repository, RestTemplate restTemplate) {
+        this.repository = repository;
+        this.restTemplate = restTemplate;
+    }
+
+    /**
+     * Maximum number of times a failed request can be replayed.
+     * After this, we stop — the issue likely needs manual investigation.
+     */
+    private static final int MAX_REPLAY_ATTEMPTS = 3;
 
     /**
      * Replays a single failed request by its database ID.
@@ -54,9 +76,10 @@ public class ReplayService {
      * 
      * STEP BY STEP:
      * 1. Find the failed request in DB
-     * 2. Build the same HTTP request using RestTemplate
-     * 3. Execute it
-     * 4. Return success/failure result
+     * 2. Check if max retries exceeded
+     * 3. Build the same HTTP request using RestTemplate
+     * 4. Execute it
+     * 5. Return success/failure result
      */
     public Map<String, Object> replayById(Long id) {
 
@@ -69,14 +92,28 @@ public class ReplayService {
         log.info("Replaying failed request ID: {} | {} {}",
                 id, failedRequest.getHttpMethod(), failedRequest.getEndpoint());
 
+        // ---- STEP 1.5: Check retry limit ----
+        // If we've already replayed this 3 times, stop trying
+        if (failedRequest.getReplayCount() >= MAX_REPLAY_ATTEMPTS) {
+            log.warn("Max replay attempts ({}) reached for ID: {}", MAX_REPLAY_ATTEMPTS, id);
+            return Map.of(
+                    "status", "MAX_RETRIES_EXCEEDED",
+                    "failureId", id,
+                    "replayCount", failedRequest.getReplayCount(),
+                    "message", "This request has been replayed " + MAX_REPLAY_ATTEMPTS
+                            + " times already. Manual investigation needed."
+            );
+        }
+
         // ---- STEP 2: Build the full URL ----
         // Example: "http://localhost:8080" + "/api/simulate/user/13"
-        String fullUrl = BASE_URL + failedRequest.getEndpoint();
+        String fullUrl = baseUrl + failedRequest.getEndpoint();
 
         // ---- STEP 3: Build HTTP headers ----
         // Headers tell the server what format the data is in
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);  // "I'm sending JSON"
+        headers.set("X-Replay", "true");  // Tell GlobalExceptionHandler: "Don't save this failure!"
 
         // ---- STEP 4: Build the request body ----
         // HttpEntity = combines headers + body into one object
@@ -103,6 +140,7 @@ public class ReplayService {
 
             // ---- STEP 6: SUCCESS! Mark as replayed ----
             failedRequest.setReplayed(true);
+            failedRequest.setReplayCount(failedRequest.getReplayCount() + 1);
             repository.save(failedRequest);  // UPDATE in DB
 
             log.info("Replay SUCCESS for ID: {} | Status: {}", id, response.getStatusCode());
@@ -120,6 +158,10 @@ public class ReplayService {
             // HttpClientErrorException = 400-level errors (bad request, not found)
             // HttpServerErrorException = 500-level errors (server crash)
             log.warn("Replay FAILED AGAIN for ID: {} | Status: {}", id, ex.getStatusCode());
+
+            // Increment replay count even on failure
+            failedRequest.setReplayCount(failedRequest.getReplayCount() + 1);
+            repository.save(failedRequest);
 
             return Map.of(
                     "status", "FAILED_AGAIN",

@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.project.issue_replayer.entity.FailedApiRequest;
 import com.project.issue_replayer.repository.FailedApiRequestRepository;
 
+import org.springframework.web.util.ContentCachingRequestWrapper;
+
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,10 +62,25 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
 
         // 1. Log the error
-        log.error("? Exception caught at {} {} ? {}",
+        log.error("Exception caught at {} {} -> {}",
                 request.getMethod(),
                 request.getRequestURI(),
                 ex.getMessage());
+
+        // LOOP PREVENTION: Don't save failures that came from a replay attempt.
+        // ReplayService sends a custom header "X-Replay: true" when replaying.
+        // Without this check: replay -> fail -> save NEW failure -> replay that -> INFINITE!
+        String replayHeader = request.getHeader("X-Replay");
+        if ("true".equals(replayHeader)) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "Replay Failed Again",
+                            "message", ex.getMessage(),
+                            "path", request.getRequestURI(),
+                            "timestamp", LocalDateTime.now().toString()
+                    ));
+        }
 
         // 2. Save to database
         FailedApiRequest failedRequest = FailedApiRequest.builder()
@@ -76,7 +93,7 @@ public class GlobalExceptionHandler {
                 .build();
 
         FailedApiRequest saved = repository.save(failedRequest);
-        log.info("? Failure saved to DB with ID: {}", saved.getId());
+        log.info("Failure saved to DB with ID: {}", saved.getId());
 
         // 3. Return clean error response to client
         return ResponseEntity
@@ -98,10 +115,23 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request) {
 
-        log.error("? Unexpected exception at {} {} ? {}",
+        log.error("Unexpected exception at {} {} -> {}",
                 request.getMethod(),
                 request.getRequestURI(),
                 ex.getMessage());
+
+        // LOOP PREVENTION for generic exceptions too
+        String replayHeader = request.getHeader("X-Replay");
+        if ("true".equals(replayHeader)) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "Replay Failed Again",
+                            "message", ex.getMessage() != null ? ex.getMessage() : "Unknown error",
+                            "path", request.getRequestURI(),
+                            "timestamp", LocalDateTime.now().toString()
+                    ));
+        }
 
         FailedApiRequest failedRequest = FailedApiRequest.builder()
                 .httpMethod(request.getMethod())
@@ -113,7 +143,7 @@ public class GlobalExceptionHandler {
                 .build();
 
         FailedApiRequest saved = repository.save(failedRequest);
-        log.info("? Failure saved to DB with ID: {}", saved.getId());
+        log.info("Failure saved to DB with ID: {}", saved.getId());
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -127,17 +157,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Helper: Try to read the request body.
-     * Note: Request body can only be read once in a servlet,
-     * so this may return null for POST requests.
-     * We'll improve this later with a filter.
+     * Helper: Read the request body from the cached wrapper.
+     * 
+     * HOW THIS WORKS:
+     * Our RequestBodyCacheFilter wraps every request in a
+     * ContentCachingRequestWrapper. This wrapper stores a copy
+     * of the body in a byte array. We read that copy here.
+     * 
+     * Without the filter, this would return null for POST requests
+     * because the body stream can only be read once.
      */
     private String getRequestBody(HttpServletRequest request) {
-        // For GET requests, capture query string instead
+        // Check if the request is wrapped by our filter
+        if (request instanceof ContentCachingRequestWrapper) {
+            ContentCachingRequestWrapper wrapper = (ContentCachingRequestWrapper) request;
+            byte[] body = wrapper.getContentAsByteArray();
+            if (body.length > 0) {
+                return new String(body, wrapper.getCharacterEncoding() != null
+                        ? java.nio.charset.Charset.forName(wrapper.getCharacterEncoding())
+                        : java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        // For GET requests, capture query string
         if ("GET".equalsIgnoreCase(request.getMethod())) {
             return request.getQueryString();
         }
-        return null; // We'll capture POST body via filter in next step
+        return null;
     }
 }
 

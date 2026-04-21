@@ -83,4 +83,12 @@ public class FailedApiRequest {
     @Column(nullable = false)
     @Builder.Default
     private boolean replayed = false;
+
+    /**
+     * How many times this request has been replayed.
+     * Used to prevent infinite retries. Default = 0.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private int replayCount = 0;
 }
