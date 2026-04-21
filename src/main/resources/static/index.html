@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Replayer Dashboard</title>
+    <style>
+        /* ===== RESET & BASE ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 20px 40px;
+            border-bottom: 2px solid #3b82f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #3b82f6;
+        }
+        .header h1 span { color: #f59e0b; }
+
+        /* ===== STATS BAR ===== */
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 20px 40px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px 30px;
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-card.danger .number { color: #ef4444; }
+        .stat-card.success .number { color: #22c55e; }
+        .stat-card.warning .number { color: #f59e0b; }
+        .stat-card .label {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ===== CONTROLS ===== */
+        .controls {
+            padding: 10px 40px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+        .btn-success:hover { background: #16a34a; }
+        .btn-secondary {
+            background: #475569;
+            color: white;
+        }
+        .btn-secondary:hover { background: #64748b; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .filter-group {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #475569;
+            background: transparent;
+            color: #94a3b8;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .filter-btn.active, .filter-btn:hover {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        /* ===== SIMULATE PANEL ===== */
+        .simulate-panel {
+            margin: 10px 40px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+        .simulate-panel.show { display: block; }
+        .simulate-panel h3 {
+            color: #f59e0b;
+            margin-bottom: 15px;
+        }
+        .simulate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .sim-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .sim-card h4 { color: #e2e8f0; margin-bottom: 8px; font-size: 14px; }
+        .sim-card p { color: #94a3b8; font-size: 12px; margin-bottom: 10px; }
+        .sim-card code {
+            display: block;
+            background: #1e293b;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #22c55e;
+            margin-bottom: 10px;
+        }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            padding: 20px 40px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th {
+            background: #334155;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #293548;
+            font-size: 14px;
+            vertical-align: top;
+        }
+        tr:hover { background: #293548; }
+        .method-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .method-GET { background: #22c55e22; color: #22c55e; }
+        .method-POST { background: #3b82f622; color: #3b82f6; }
+        .method-PUT { background: #f59e0b22; color: #f59e0b; }
+        .method-DELETE { background: #ef444422; color: #ef4444; }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-500 { background: #ef444422; color: #ef4444; }
+        .status-400 { background: #f59e0b22; color: #f59e0b; }
+        .status-404 { background: #8b5cf622; color: #8b5cf6; }
+        .replayed-true { color: #22c55e; }
+        .replayed-false { color: #ef4444; }
+        .error-text {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #f87171;
+            font-size: 13px;
+        }
+        .endpoint-text {
+            color: #60a5fa;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .replay-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .toast-success { background: #16a34a; }
+        .toast-error { background: #dc2626; }
+        .toast-info { background: #2563eb; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { color: #3b82f6; margin-bottom: 20px; }
+        .modal-field {
+            margin-bottom: 15px;
+        }
+        .modal-field label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .modal-field .value {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <h1>&#9889; Production <span>Issue Replayer</span></h1>
+        <div style="color: #64748b; font-size: 13px;">Spring Boot 3.5.0 | H2 Database</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-bar">
+        <div class="stat-card danger">
+            <div class="number" id="totalCount">-</div>
+            <div class="label">Total Failures</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="number" id="pendingCount">-</div>
+            <div class="label">Pending Replay</div>
+        </div>
+        <div class="stat-card success">
+            <div class="number" id="replayedCount">-</div>
+            <div class="label">Replayed</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="serverErrors">-</div>
+            <div class="label">500 Errors</div>
+        </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+        <button class="btn btn-primary" onclick="loadFailures()">&#x21bb; Refresh</button>
+        <button class="btn btn-danger" onclick="toggleSimPanel()">&#9889; Simulate Failure</button>
+        <div class="filter-group">
+            <button class="filter-btn active" onclick="filterBy('all', this)">All</button>
+            <button class="filter-btn" onclick="filterBy('pending', this)">Pending</button>
+            <button class="filter-btn" onclick="filterBy('replayed', this)">Replayed</button>
+            <button class="filter-btn" onclick="filterBy('500', this)">500 Only</button>
+        </div>
+    </div>
+
+    <!-- SIMULATE PANEL -->
+    <div class="simulate-panel" id="simPanel">
+        <h3>&#x1f4a5; Trigger Simulated Failures</h3>
+        <div class="simulate-grid">
+            <div class="sim-card">
+                <h4>GET - User Not Found (404)</h4>
+                <p>Requests a user ID that doesn't exist</p>
+                <code>GET /api/simulate/user/200</code>
+                <button class="btn btn-secondary" onclick="simulateFailure('GET', '/api/simulate/user/200')">Trigger</button>
+            </div>
+            <div class="sim-card">
+                <h4>GET - Server Crash (500)</h4>
+                <p>Triggers a RuntimeException (DB connection lost)</p>
+                <code>GET /api/simulate/user/13</code>
+                <button class="btn btn-danger" onclick="simulateFailure('GET', '/api/simulate/user/13')">Trigger</button>
+            </div>
+            <div class="sim-card">
+                <h4>GET - Bad Request (400)</h4>
+                <p>Sends an invalid user ID (zero)</p>
+                <code>GET /api/simulate/user/0</code>
+                <button class="btn btn-secondary" onclick="simulateFailure('GET', '/api/simulate/user/0')">Trigger</button>
+            </div>
+            <div class="sim-card">
+                <h4>POST - Bulk Order Crash (500)</h4>
+                <p>Orders quantity > 1000 causes inventory timeout</p>
+                <code>POST /api/simulate/order</code>
+                <button class="btn btn-danger" onclick="simulateFailure('POST', '/api/simulate/order', JSON.stringify({product:'Laptop',quantity:5000}))">Trigger</button>
+            </div>
+            <div class="sim-card">
+                <h4>POST - Missing Product (400)</h4>
+                <p>Empty product name causes validation error</p>
+                <code>POST /api/simulate/order</code>
+                <button class="btn btn-secondary" onclick="simulateFailure('POST', '/api/simulate/order', JSON.stringify({product:'',quantity:2}))">Trigger</button>
+            </div>
+            <div class="sim-card">
+                <h4>GET - Success (200)</h4>
+                <p>Valid request - should NOT appear in failures</p>
+                <code>GET /api/simulate/user/5</code>
+                <button class="btn btn-success" onclick="simulateFailure('GET', '/api/simulate/user/5')">Trigger</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Status</th>
+                    <th>Error Message</th>
+                    <th>Body</th>
+                    <th>Replayed</th>
+                    <th>Retries</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="failureTable">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DETAIL MODAL -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <h3>&#128270; Failure Details - #<span id="modalId"></span></h3>
+            <div class="modal-field">
+                <label>HTTP Method</label>
+                <div class="value" id="modalMethod"></div>
+            </div>
+            <div class="modal-field">
+                <label>Endpoint</label>
+                <div class="value" id="modalEndpoint"></div>
+            </div>
+            <div class="modal-field">
+                <label>Status Code</label>
+                <div class="value" id="modalStatus"></div>
+            </div>
+            <div class="modal-field">
+                <label>Error Message</label>
+                <div class="value" id="modalError" style="color: #f87171;"></div>
+            </div>
+            <div class="modal-field">
+                <label>Request Body</label>
+                <div class="value" id="modalBody"></div>
+            </div>
+            <div class="modal-field">
+                <label>Timestamp</label>
+                <div class="value" id="modalTime"></div>
+            </div>
+            <div class="modal-field">
+                <label>Replay Status</label>
+                <div class="value" id="modalReplay"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn btn-primary" id="modalReplayBtn" onclick="">Replay This Request</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ===== STATE =====
+        let allFailures = [];
+
+        // ===== API CALLS =====
+        const API = '';  // same origin
+
+        async function loadFailures() {
+            try {
+                const [failRes, countRes, pendingRes, replayedRes] = await Promise.all([
+                    fetch(API + '/api/failures'),
+                    fetch(API + '/api/failures/count'),
+                    fetch(API + '/api/failures/pending'),
+                    fetch(API + '/api/failures/replayed')
+                ]);
+
+                allFailures = await failRes.json();
+                const total = await countRes.json();
+                const pending = await pendingRes.json();
+                const replayed = await replayedRes.json();
+
+                // Update stats
+                document.getElementById('totalCount').textContent = total;
+                document.getElementById('pendingCount').textContent = pending.length;
+                document.getElementById('replayedCount').textContent = replayed.length;
+                document.getElementById('serverErrors').textContent =
+                    allFailures.filter(f => f.statusCode === 500).length;
+
+                renderTable(allFailures);
+            } catch (err) {
+                showToast('Failed to load data: ' + err.message, 'error');
+            }
+        }
+
+        function renderTable(failures) {
+            const tbody = document.getElementById('failureTable');
+
+            if (failures.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="10">
+                        <div class="empty-state">
+                            <div class="icon">&#x2705;</div>
+                            <h3>No failures found</h3>
+                            <p>Click "Simulate Failure" to trigger some test failures</p>
+                        </div>
+                    </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = failures.map(f => `
+                <tr>
+                    <td><strong>#${f.id}</strong></td>
+                    <td><span class="method-badge method-${f.httpMethod}">${f.httpMethod}</span></td>
+                    <td class="endpoint-text">${f.endpoint}</td>
+                    <td><span class="status-badge status-${f.statusCode}">${f.statusCode}</span></td>
+                    <td><div class="error-text" title="${escHtml(f.errorMessage)}">${escHtml(f.errorMessage)}</div></td>
+                    <td style="font-size:12px; color:#94a3b8; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.requestBody || '-'}</td>
+                    <td class="replayed-${f.replayed}">${f.replayed ? '&#x2705; Yes' : '&#x274c; No'}</td>
+                    <td><span class="replay-count">${f.replayCount}/3</span></td>
+                    <td style="font-size:12px; color:#94a3b8;">${formatTime(f.timestamp)}</td>
+                    <td>
+                        <button class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="showDetail(${f.id})">View</button>
+                        ${!f.replayed && f.replayCount < 3 ?
+                            `<button class="btn btn-primary" style="padding:5px 10px; font-size:12px; margin-left:4px;" onclick="replayRequest(${f.id})">Replay</button>`
+                            : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ===== SIMULATE =====
+        async function simulateFailure(method, endpoint, body) {
+            try {
+                const options = { method };
+                if (body) {
+                    options.headers = { 'Content-Type': 'application/json' };
+                    options.body = body;
+                }
+                const res = await fetch(API + endpoint, options);
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast('Request succeeded (no failure created): ' + (data.name || data.orderId || 'OK'), 'info');
+                } else {
+                    showToast(`Failure captured! ID: ${data.failureId || 'N/A'} | ${data.message}`, 'error');
+                }
+                loadFailures();
+            } catch (err) {
+                showToast('Request error: ' + err.message, 'error');
+                loadFailures();
+            }
+        }
+
+        // ===== REPLAY =====
+        async function replayRequest(id) {
+            try {
+                showToast(`Replaying request #${id}...`, 'info');
+                const res = await fetch(API + `/api/replay/${id}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.status === 'SUCCESS') {
+                    showToast(`Replay SUCCESS for #${id}!`, 'success');
+                } else if (data.status === 'MAX_RETRIES_EXCEEDED') {
+                    showToast(`Max retries reached for #${id}. Manual investigation needed.`, 'error');
+                } else {
+                    showToast(`Replay failed again for #${id}: ${data.status}`, 'error');
+                }
+                loadFailures();
+            } catch (err) {
+                showToast('Replay error: ' + err.message, 'error');
+            }
+        }
+
+        // ===== FILTERS =====
+        function filterBy(type, btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            let filtered = allFailures;
+            if (type === 'pending') filtered = allFailures.filter(f => !f.replayed);
+            else if (type === 'replayed') filtered = allFailures.filter(f => f.replayed);
+            else if (type === '500') filtered = allFailures.filter(f => f.statusCode === 500);
+
+            renderTable(filtered);
+        }
+
+        // ===== DETAIL MODAL =====
+        function showDetail(id) {
+            const f = allFailures.find(f => f.id === id);
+            if (!f) return;
+
+            document.getElementById('modalId').textContent = f.id;
+            document.getElementById('modalMethod').textContent = f.httpMethod;
+            document.getElementById('modalEndpoint').textContent = f.endpoint;
+            document.getElementById('modalStatus').textContent = f.statusCode;
+            document.getElementById('modalError').textContent = f.errorMessage;
+            document.getElementById('modalBody').textContent = f.requestBody
+                ? JSON.stringify(JSON.parse(f.requestBody), null, 2)
+                : 'No body (GET request)';
+            document.getElementById('modalTime').textContent = f.timestamp;
+            document.getElementById('modalReplay').textContent =
+                f.replayed ? `Yes (replayed ${f.replayCount} times)` : `No (${f.replayCount}/3 attempts)`;
+
+            const replayBtn = document.getElementById('modalReplayBtn');
+            if (f.replayed || f.replayCount >= 3) {
+                replayBtn.disabled = true;
+                replayBtn.textContent = f.replayed ? 'Already Replayed' : 'Max Retries Reached';
+            } else {
+                replayBtn.disabled = false;
+                replayBtn.textContent = 'Replay This Request';
+                replayBtn.onclick = () => { closeModal(); replayRequest(f.id); };
+            }
+
+            document.getElementById('detailModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('show');
+        }
+
+        // ===== SIMULATE PANEL TOGGLE =====
+        function toggleSimPanel() {
+            document.getElementById('simPanel').classList.toggle('show');
+        }
+
+        // ===== HELPERS =====
+        function escHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '-';
+            const d = new Date(ts);
+            return d.toLocaleTimeString() + '<br>' + d.toLocaleDateString();
+        }
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ===== INIT =====
+        loadFailures();
+        // Auto-refresh every 10 seconds
+        setInterval(loadFailures, 10000);
+    </script>
+</body>
+</html>
